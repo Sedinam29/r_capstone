@@ -1,0 +1,247 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+I would like to recognize geeks for geeks, w3schools, and copilot as they were intrumental sources that supported my understanding of this data.
+
+
+First I will attach the library packages I will need for my analysis
+```{r}
+library(readr)
+library(dplyr)
+library(ggplot2)
+
+
+
+```
+I will be working on a USA car dataset.
+
+```{r}
+#reading my car dataset
+file_path <- "USA_cars_datasets.csv"
+cars_df <- read_csv(file_path)
+View(cars_df)
+```
+2. I am going to remove the unnamed columned from my dataset. The unnamed column contains 
+numeric values 1 - 2600 (more like the index). I will remove this to avoid interference in my analysis.
+```{r}
+#subset to create new df without unnamed column
+#cars_df <- subset(cars_df, select = -c('Unnamed: 0'))
+#since my column does not have a column name , we will use index
+cars_df_new <- cars_df[, -1]
+
+View(cars_df_new)
+
+
+```
+
+DESCRIPTIVE ANALYSIS
+
+3. What is the structure of my data
+```{r}
+print(str(cars_df_new))
+```
+Here I see that my data has 2,499 rows and 12 columns. I can also see that the columns are price,brand, model, year, title_status, mileage, color, vin, lot, state, country, condition.
+
+4. Let's view a summary statistics of my data(looking at all numeric columns)
+```{r}
+summary(select_if(cars_df_new, is.numeric))
+```
+5. Let's have a frequency count for all my categorical data
+```{r}
+lapply(select_if(cars_df_new, is.factor), table)
+```
+I see that my cars_df_new has a color column. I would like to dig into this
+6. Are there certain colors that are more popular for cars?
+
+```{r}
+# using ggplot 2 
+#create color table..
+#print the color frequency
+#create a bar plot of color frequencies
+car_color_freq <- table(cars_df_new$color)
+
+print(car_color_freq)
+```
+```{r}
+#using car_color_freq
+#create a bar plot of colors
+color_var <- ggplot(data = as.data.frame(car_color_freq), aes(x = Var1, y = Freq)) +
+  geom_bar(stat = "identity", fill = "purple") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Color", y = "Frequency", title = "Color Analysis of Cars")
+
+color_var
+ggsave("color_var.png", plot = color_var, width = 6, height = 4)
+```
+The most frequent colors for cars are white, black, and silver/gray, as shown by the tallest bars on the graph.
+
+Perhaps, there colors might be more popular for cars, given their higher frequency in the dataset.
+
+
+
+
+7. Which car brands are the most common in the US?
+```{r}
+#count the freq of each brand in the 'brand' column
+#sort in descending order to find the most comm. brands
+car_brand <- table(cars_df_new$brand)
+
+sorted_car_brands <- sort(car_brand, decreasing = TRUE)
+
+print(sorted_car_brands)
+```
+
+
+8. Does  the popularity of brands vary from country or state?
+
+```{r}
+#grouping data by country or state and brand
+#count frequency of each brand within each state
+#FOR COUNTRY:
+country_brand_freq <- cars_df_new %>%
+  group_by(country, brand) %>%
+  summarise(freq = n()) %>%
+  arrange(desc(freq))
+
+print(country_brand_freq)
+
+#FOR STATE
+state_brand_freq <- cars_df_new %>%
+  group_by(state, brand) %>%
+  summarise(freq = n()) %>%
+  arrange(desc(freq))
+
+print(state_brand_freq)
+
+#most common brand in the US is Ford with 1235 rep in thw data
+#However by state, the popularity of brand does vary. Pennsylvania has the highest count for ford cars
+```
+
+9.Are there certain models that are more common than others?
+```{r}
+#do count of each model
+model_count <- cars_df_new %>%
+  group_by(model) %>%
+  summarise(freq = n()) %>%
+  arrange(desc(freq))
+
+print(model_count)
+```
+
+10. Do these trends vary by brands?
+```{r}
+#to find the trend pattern:
+#groupby brand and model, then count the frequency of each model within each brand
+brand_model_count <- cars_df_new %>% 
+  group_by(brand, model) %>% 
+  summarise(freq = n()) %>%
+  arrange(desc(freq))
+
+print(brand_model_count)
+```
+
+Now we know that the most popular brand is Ford, that too out of the many states that patronize ford, its mostly popular in Pennsylvania...
+
+11. What is the distribution of car prices?
+
+```{r}
+# Create a histogram of price
+price_distro <-  ggplot(cars_df_new, aes(x = price)) +
+  geom_histogram(binwidth = 5000, fill = "blue") +
+  labs(x = "Price", y = "Count", title = "Distribution of Car Prices")
+
+price_distro
+ggsave("price_distro.png", plot = price_distro , width = 6, height = 4)
+```
+OBS: Here we can see that most cars are priced mostly around 20,000 - 35,000, with a few around 40,000 to 55, 000. It is least likely to find a car priced around 75,000 and up.
+
+Why these prices?
+why are the prices concentrated around 20-25,000
+Let's test some hypotheses
+
+Let's look at prices and car age..
+
+HYPOTHESIS: CARS THAT ARE NEWER ARE MORE EXPENSIVE THAN OLDER CARS
+Where the metric for measuring newer =  most recent year,
+
+12. How does the age of the car (based on the year column) relate to its price?
+
+```{r}
+#I will create a scatterplot with 'year' on the x-ais and 'price' on the y-axis to visualize the relationship
+price_v_year <- ggplot(cars_df_new, aes(x = year, y = price)) +
+  geom_point(color = 'red') +
+  labs(x = "Year", y = "Price", title = "Price vs Year")
+
+price_v_year
+
+ggsave("price_v_year.png", plot = price_v_year , width = 6, height = 4)
+```
+OBS: From this image, we see that the prices are higher by recency. This supports the hypothesis that cars are more expensive with recency
+
+First, There's a visible upward trend, indicating that as the year of manufacture increases, so does the price.
+
+Second, Newer cars, especially those manufactured after 2010, tend to cluster at higher price points
+
+third, while the trend is upward, there is variability, suggesting that other factors besides age may also influence the price.
+
+Finally, Some older cars (pre-1990s) also show higher prices, which could indicate a "vintage" value effect
+
+
+13.How does the mileage of the car relate to its price?
+HYPOTHESIS: CARS WITH LOWER MILEAGE ARE MORE EXPENSIVE THAN CARS WITH HIGHER MILEAGE
+test:
+
+```{r}
+#I will plot mileage by price
+price_miles <- ggplot(cars_df_new, aes(x = mileage, y = price)) +
+  geom_point(color = 'orange') +
+  labs(x = "Mileage:lowest to highest", y = "Price", title = "Price vs Mileage")
+
+price_miles
+ggsave("price_mile.png", plot = price_miles , width = 6, height = 4)
+```
+Obs : From the graph we can see that the cars with low mileage are priced higher than those with high mileage
+
+First, we see a general downward trend, suggesting that as mileage increases, the price of cars tend to decrease
+
+Second, Cars with lower mileage are clustered at higher price points, supporting the hypothesis that they are more expensive than cars with higher mileage.
+
+Third, The dense cluster of points at the lower end of the mileage spectrum shows a concentration of cars with lower mileage and higher prices.
+
+Finally, I see that there is significant variation in price within the same mileage range, indicating that factors other than mileage also affect car pricing.
+
+
+Does the condition of a car affect pricing? well, let's see
+14. How does the condition of the car relate to pricing?
+```{r}
+#I will be using a boxplot for this
+#there are a lot of conditions so let's filter
+filtered_cars_df_new <- cars_df_new %>%
+  group_by(condition) %>%
+  filter(n() >= 10)
+
+condition_price <- ggplot(filtered_cars_df_new, aes(x = reorder(condition, price, FUN = median), y = price, fill = condition)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(angle = 45,hjust = 1)) +
+  labs(x = "Condition", y = "Price", title = "Price vs Condition")
+
+condition_price
+ggsave("condition_price.png", plot = condition_price, width = 6, height = 4)
+```
+OBS:
+
+first, The colors indicate the different time duration left before listings expire, which may also affect pricing.
+
+then, I  see that there is an increased trend in price from "salvage" to "like new" conditions. This suggests that better-conditioned cars tend to have higher prices.
+most importantly, I see that the price of cars varies widely within each condition category. We also have some outliers indicating that certain cars may be priced significantly higher or lower than the average for their condition.
+
+This implies that the condition of a car is a significant factor in its pricing, with cars in better condition generally commanding higher prices.
+
+In conclusion, The most frequent colors for cars are white, black, and silver/gray, as shown by the tallest bars on the graph. These colors might be more popular for cars, given their higher frequency in the dataset.
+Also, Ford is the most popular brand in the US.It is mostly common in Pennsylvania, Michigan and Tetax and Florida. Based on the observations made from this sample dataset, we can conclude that there are a lot of old vehicles in the US. The data seems representative of these cars than newer ones.
+Also, Some older cars (pre-1990s) show higher prices, which could indicate a "vintage" value effect. There are a varing collection of factors that affect the pricing of a car. In addition, Better conditioned cars tend to have higher prices, although there are some cars that are priced significantly higher or lower than the average price of 18,768. 
+
+
+
